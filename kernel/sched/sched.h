@@ -772,6 +772,8 @@ extern void sched_account_irqtime(int cpu, struct task_struct *curr,
 unsigned int cpu_temp(int cpu);
 extern unsigned int nr_eligible_big_tasks(int cpu);
 
+extern int power_delta_exceeded(unsigned int cpu_cost, unsigned int base_cost);
+
 /*
  * 'load' is in reference to "best cpu" at its best frequency.
  * Scale that in reference to a given cpu, accounting for how bad it is
