@@ -46,7 +46,7 @@ if [ "$found" != 'run-parts /system/etc/init.d' ]; then
 fi
 
 #copy custom init.shamu.rc
-cp /tmp/fstab.shamu /tmp/ramdisk/fstab.bullhead
+cp /tmp/fstab.bullhead /tmp/ramdisk/fstab.bullhead
 chmod 750 /tmp/ramdisk/fstab.bullhead
 
 #remove governor overrides, use kernel default
