@@ -45,38 +45,24 @@ if [ "$found" != 'run-parts /system/etc/init.d' ]; then
         echo "    group root" >> /tmp/ramdisk/init.rc
 fi
 
-#copy custom init.shamu.rc
-cp /tmp/fstab.bullhead /tmp/ramdisk/fstab.bullhead
-chmod 750 /tmp/ramdisk/fstab.bullhead
-
-#remove governor overrides, use kernel default
-#sed -i '/\/sys\/devices\/system\/cpu\/cpufreq\/interactive\/hispeed_freq/d' /tmp/ramdisk/init.shamu.power.rc
-#sed -i '/\/sys\/devices\/system\/cpu\/cpu0\/cpufreq\/scaling_governor/d' /tmp/ramdisk/init.shamu.power.rc
-#sed -i '/\/sys\/devices\/system\/cpu\/cpu1\/cpufreq\/scaling_governor/d' /tmp/ramdisk/init.shamu.power.rc
-#sed -i '/\/sys\/devices\/system\/cpu\/cpu2\/cpufreq\/scaling_governor/d' /tmp/ramdisk/init.shamu.power.rc
-#sed -i '/\/sys\/devices\/system\/cpu\/cpu3\/cpufreq\/scaling_governor/d' /tmp/ramdisk/init.shamu.power.rc
-#remove min_freq overrides, use kernel default
-#sed -i '/\/sys\/devices\/system\/cpu\/cpu0\/cpufreq\/scaling_min_freq/d' /tmp/ramdisk/init.shamu.power.rc
-#sed -i '/\/sys\/devices\/system\/cpu\/cpu1\/cpufreq\/scaling_min_freq/d' /tmp/ramdisk/init.shamu.power.rc
-#sed -i '/\/sys\/devices\/system\/cpu\/cpu2\/cpufreq\/scaling_min_freq/d' /tmp/ramdisk/init.shamu.power.rc
-#sed -i '/\/sys\/devices\/system\/cpu\/cpu3\/cpufreq\/scaling_min_freq/d' /tmp/ramdisk/init.shamu.power.rc
-#Gain write access on /system
-if  grep -qr ro.secure=1 /tmp/ramdisk/default.prop; then
- sed -i "s/ro.secure=1/ro.secure=0/" /tmp/ramdisk/default.prop
+#Don't force encryption
+if  grep -qr forceencrypt /tmp/ramdisk/fstab.bullhead; then
+   sed -i "s/forceencrypt/encryptable/" /tmp/ramdisk/fstab.bullhead
 fi
 
-if  grep -qr verity_load_state /tmp/ramdisk/init.bullhead.rc; then
- sed -i "s/verity_load_state/#verity_load_state/" /tmp/ramdisk/init.bullhead.rc
-fi
-if  grep -qr verity_update_state /tmp/ramdisk/init.bullhead.rc; then
- sed -i "s/verity_update_state/#verity_update_state/" /tmp/ramdisk/init.bullhead.rc
+#Disable dm_verity
+if  grep -qr verify=/dev/block/platform/msm_sdcc.1/by-name/metadata /tmp/ramdisk/fstab.bullhead; then
+   sed -i "s/\,verify\=\/dev\/block\/platform\/msm_sdcc\.1\/by\-name\/metadata//" /tmp/ramdisk/fstab.bullhead
 fi
 
-
-rm /tmp/ramdisk/boot.img-ramdisk.gz
+chmod 777 /tmp/ramdisk/boot.img-ramdisk.gz
+rm -r /tmp/ramdisk/verity_key
+chmod 777 /tmp/ramdisk/boot.img-ramdisk.gz
+rm -r /tmp/ramdisk/boot.img-ramdisk.gz
 rm /tmp/boot.img-ramdisk.gz
 cd /tmp/ramdisk/
 find . | cpio -o -H newc | gzip > ../boot.img-ramdisk.gz
 cd /
 rm -rf /tmp/ramdisk
+
 
