@@ -634,6 +634,7 @@ static int __init lge_panic_handler_early_init(void)
 	uint32_t crash_handler_magic = 0;
 	unsigned long ramoops_addr = 0;
 	unsigned long ramoops_size = 0;
+	int ret = 0;
 
 	panic_handler = kzalloc(sizeof(*panic_handler), GFP_KERNEL);
 	if (!panic_handler) {
