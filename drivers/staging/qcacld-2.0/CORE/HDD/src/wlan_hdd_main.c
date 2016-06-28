@@ -185,7 +185,6 @@ static int   enable_dfs_chan_scan = -1;
 
 #ifndef MODULE
 static int wlan_hdd_inited;
-static char fwpath_mode_local[BUF_LEN];
 #endif
 
 /*
@@ -2196,15 +2195,16 @@ hdd_parse_send_action_frame_v1_data(const tANI_U8 *pValue,
 static int
 hdd_sendactionframe(hdd_adapter_t *pAdapter, const tANI_U8 *bssid,
                     const tANI_U8 channel, const tANI_U8 dwell_time,
-                    const int payload_len, const tANI_U8 *payload)
+                    const tANI_U8 payload_len, const tANI_U8 *payload)
 {
    struct ieee80211_channel chan;
-   int frame_len, ret = 0;
+   tANI_U8 frame_len;
    tANI_U8 *frame;
    struct ieee80211_hdr_3addr *hdr;
    u64 cookie;
    hdd_station_ctx_t *pHddStaCtx;
    hdd_context_t *pHddCtx;
+   int ret = 0;
    tpSirMacVendorSpecificFrameHdr pVendorSpecific =
                    (tpSirMacVendorSpecificFrameHdr) payload;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0)) || defined(WITH_BACKPORTS)
@@ -2361,57 +2361,45 @@ hdd_parse_sendactionframe_v1(hdd_adapter_t *pAdapter, const char *command)
    return ret;
 }
 
-/**
- * hdd_parse_sendactionframe_v2() - parse version 2 of the
- *                                  SENDACTIONFRAME command
- * @pAdapter: Adapter upon which the command was received
- * @command: command that was received, ASCII command followed
- *           by binary data
- * @total_len: total length of command
- *
- * This function parses the v2 SENDACTIONFRAME command with the format
- * SENDACTIONFRAME <android_wifi_af_params>
- *
- * Return: 0 for success non-zero for failure
- */
+/*
+  \brief hdd_parse_sendactionframe_v2() - parse version 2 of the
+         SENDACTIONFRAME command
+
+  This function parses the v2 SENDACTIONFRAME command with the format
+
+      SENDACTIONFRAME <android_wifi_af_params>
+
+  \param - pAdapter - Adapter upon which the command was received
+  \param - command - command that was received, ASCII command followed
+                     by binary data
+
+  \return - 0 for success non-zero for failure
+
+  --------------------------------------------------------------------------*/
 static int
 hdd_parse_sendactionframe_v2(hdd_adapter_t *pAdapter,
-                             const char *command, int total_len)
+                             const char *command)
 {
-	struct android_wifi_af_params *params;
-	tSirMacAddr bssid;
-	int ret;
+   struct android_wifi_af_params *params;
+   tSirMacAddr bssid;
+   int ret;
 
-	/* The params are located after "SENDACTIONFRAME " */
-	total_len -= 16;
-	params = (struct android_wifi_af_params *)(command + 16);
+   /* params are large so keep off the stack */
+   params = kmalloc(sizeof(*params), GFP_KERNEL);
+   if (!params) return -ENOMEM;
 
-	if (params->len <= 0 || params->len > ANDROID_WIFI_ACTION_FRAME_SIZE ||
-            (params->len > total_len)) {
-		hddLog(LOGE, FL("Invalid payload length: %d"), params->len);
-		return -EINVAL;
-	}
+   /* The params are located after "SENDACTIONFRAME " */
+   memcpy(params, command + 16, sizeof(*params));
 
-	if (!mac_pton(params->bssid, (u8 *)&bssid)) {
-		hddLog(LOGE, FL("MAC address parsing failed"));
-		return -EINVAL;
-	}
-
-	if (params->channel < 0 ||
-	    params->channel > WNI_CFG_CURRENT_CHANNEL_STAMAX) {
-		hddLog(LOGE, FL("Invalid channel: %d"), params->channel);
-		return -EINVAL;
-	}
-
-	if (params->dwell_time < 0) {
-		hddLog(LOGE, FL("Invalid dwell_time: %d"), params->dwell_time);
-		return -EINVAL;
-	}
-
-	ret = hdd_sendactionframe(pAdapter, bssid, params->channel,
-				params->dwell_time, params->len, params->data);
-
-	return ret;
+   if (!mac_pton(params->bssid, (u8 *)&bssid)) {
+      hddLog(LOGE, "%s: MAC address parsing failed", __func__);
+      ret = -EINVAL;
+   } else {
+      ret = hdd_sendactionframe(pAdapter, bssid, params->channel,
+                                params->dwell_time, params->len, params->data);
+   }
+   kfree(params);
+   return ret;
 }
 
 /*
@@ -2431,8 +2419,7 @@ hdd_parse_sendactionframe_v2(hdd_adapter_t *pAdapter,
 
   --------------------------------------------------------------------------*/
 static int
-hdd_parse_sendactionframe(hdd_adapter_t *pAdapter, const char *command,
-                          int total_len)
+hdd_parse_sendactionframe(hdd_adapter_t *pAdapter, const char *command)
 {
    int ret;
 
@@ -2448,19 +2435,11 @@ hdd_parse_sendactionframe(hdd_adapter_t *pAdapter, const char *command,
     * SENDACTIONFRAME xx:xx:xx:xx:xx:xx*
     *           111111111122222222223333
     * 0123456789012345678901234567890123
-    *
-    * For both the commands, a valid command must have atleast first 34 length
-    * of data.
     */
-   if (total_len < 34) {
-       hddLog(LOGE, FL("Invalid command (total_len=%d)"), total_len);
-       return -EINVAL;
-   }
-
    if (command[33]) {
       ret = hdd_parse_sendactionframe_v1(pAdapter, command);
    } else {
-      ret = hdd_parse_sendactionframe_v2(pAdapter, command, total_len);
+      ret = hdd_parse_sendactionframe_v2(pAdapter, command);
    }
 
    return ret;
@@ -3013,9 +2992,8 @@ static eHalStatus hdd_parse_plm_cmd(tANI_U8 *pValue, tSirPlmReq *pPlmRequest)
         if (content < 0)
            return eHAL_STATUS_FAILURE;
 
-        content = VOS_MIN(content, WNI_CFG_VALID_CHANNEL_LIST_LEN);
         pPlmRequest->plmNumCh = content;
-        hddLog(LOG1, FL("Numch: %d"), pPlmRequest->plmNumCh);
+        hddLog(VOS_TRACE_LEVEL_DEBUG, "numch %d", pPlmRequest->plmNumCh);
 
         /* Channel numbers */
         for (count = 0; count < pPlmRequest->plmNumCh; count++)
@@ -3033,9 +3011,10 @@ static eHalStatus hdd_parse_plm_cmd(tANI_U8 *pValue, tSirPlmReq *pPlmRequest)
              if (1 != ret) return eHAL_STATUS_FAILURE;
 
              ret = kstrtos32(buf, 10, &content);
-             if (ret < 0 || content <= 0 ||
-                 content > WNI_CFG_CURRENT_CHANNEL_STAMAX)
-                 return eHAL_STATUS_FAILURE;
+             if ( ret < 0) return eHAL_STATUS_FAILURE;
+
+             if (content <= 0)
+                return eHAL_STATUS_FAILURE;
 
              pPlmRequest->plmChList[count]= content;
              hddLog(VOS_TRACE_LEVEL_DEBUG, " ch- %d",
@@ -5862,8 +5841,7 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
        }
        else if (strncmp(command, "SENDACTIONFRAME", 15) == 0)
        {
-           ret = hdd_parse_sendactionframe(pAdapter, command,
-                                           priv_data.total_len);
+           ret = hdd_parse_sendactionframe(pAdapter, command);
        }
        else if (strncmp(command, "GETROAMSCANCHANNELMINTIME", 25) == 0)
        {
@@ -6476,11 +6454,11 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
        {
            tANI_U8 *value = command;
            eHalStatus status = eHAL_STATUS_SUCCESS;
-           tpSirPlmReq pPlmRequest;
+           tpSirPlmReq pPlmRequest = NULL;
 
            pPlmRequest = vos_mem_malloc(sizeof(tSirPlmReq));
            if (NULL == pPlmRequest){
-               ret = -ENOMEM;
+               ret = -EINVAL;
                goto exit;
            }
 
@@ -9044,18 +9022,8 @@ static inline int wlan_hdd_stop_can_enter_lowpower(hdd_adapter_t *adapter)
  */
 static void kickstart_driver_handler(struct work_struct *work)
 {
-	bool ready;
-
-	ready = vos_is_load_unload_ready(__func__);
-	if (!ready) {
-		VOS_ASSERT(0);
-		return;
-	}
-
-	vos_load_unload_protect(__func__);
 	hdd_driver_exit();
 	wlan_hdd_inited = 0;
-	vos_load_unload_unprotect(__func__);
 }
 
 static DECLARE_WORK(kickstart_driver_work, kickstart_driver_handler);
@@ -9063,7 +9031,6 @@ static DECLARE_WORK(kickstart_driver_work, kickstart_driver_handler);
 /**
  * kickstart_driver() - Initialize and Clean-up driver
  * @load:	True: initialize, False: Clean-up driver
- * @mode_change: tell if last mode and current mode is same or not
  *
  * Delayed driver initialization when driver is statically linked and Clean-up
  * when all the interfaces are down or any other condition which requires to
@@ -9075,13 +9042,12 @@ static DECLARE_WORK(kickstart_driver_work, kickstart_driver_handler);
  *
  * Return: 0 on success, non zero on failure
  */
-static int kickstart_driver(bool load, bool mode_change)
+static int kickstart_driver(bool load)
 {
 	int ret_status;
 
-	pr_info("%s: load: %d wlan_hdd_inited: %d, mode_change: %d caller: %pf\n",
-			 __func__, load, wlan_hdd_inited,
-			mode_change, (void *)_RET_IP_);
+	pr_info("%s: load: %d wlan_hdd_inited: %d, caller: %pf\n", __func__,
+			load, wlan_hdd_inited, (void *)_RET_IP_);
 
 	/* Make sure unload and load are synchronized */
 	flush_work(&kickstart_driver_work);
@@ -9102,18 +9068,12 @@ static int kickstart_driver(bool load, bool mode_change)
 		return ret_status;
 	}
 
-        /* just return success because the driver is already loaded  with this mode */
-        if (load && wlan_hdd_inited && !mode_change) {
-		ret_status = 0;
-	} else {
-		hdd_driver_exit();
+	hdd_driver_exit();
 
-		msleep(200);
+	msleep(200);
 
-		ret_status = hdd_driver_init();
-		wlan_hdd_inited = ret_status ? 0 : 1;
-	}
-
+	ret_status = hdd_driver_init();
+	wlan_hdd_inited = ret_status ? 0 : 1;
 	return ret_status;
 }
 
@@ -9126,22 +9086,11 @@ static int kickstart_driver(bool load, bool mode_change)
  */
 static inline void wlan_hdd_stop_enter_lowpower(hdd_context_t *hdd_ctx)
 {
-	bool ready;
-
 	/* Do not clean up n/w ifaces if we are in DRIVER STOP phase or else
 	 * DRIVER START will fail and Wi-Fi will not resume successfully
 	 */
-	if (hdd_ctx && !hdd_ctx->driver_being_stopped) {
-		ready = vos_is_load_unload_ready(__func__);
-		if (!ready) {
-			VOS_ASSERT(0);
-			return;
-		}
-
-		vos_load_unload_protect(__func__);
-		kickstart_driver(false, false);
-		vos_load_unload_unprotect(__func__);
-	}
+	if (hdd_ctx && !hdd_ctx->driver_being_stopped)
+		kickstart_driver(false);
 }
 
 /**
@@ -12929,7 +12878,7 @@ free_hdd_ctx:
 
    wlan_hdd_deinit_tx_rx_histogram(pHddCtx);
    wiphy_unregister(wiphy) ;
-   wlan_hdd_cfg80211_deinit(wiphy);
+
    wiphy_free(wiphy) ;
    if (hdd_is_ssr_required())
    {
@@ -14664,10 +14613,6 @@ int hdd_wlan_startup(struct device *dev, v_VOID_t *hif_sc)
    rtnl_lock_enable = FALSE;
 #endif
 
-   /* Initialize the RoC Request queue and work. */
-   hdd_list_init((&pHddCtx->hdd_roc_req_q), MAX_ROC_REQ_QUEUE_ENTRY);
-   vos_init_delayed_work(&pHddCtx->rocReqWork, wlan_hdd_roc_request_dequeue);
-
    if (pHddCtx->cfg_ini->dot11p_mode == WLAN_HDD_11P_STANDALONE) {
        /* Create only 802.11p interface */
       pAdapter = hdd_open_adapter(pHddCtx, WLAN_HDD_OCB,
@@ -15076,6 +15021,10 @@ int hdd_wlan_startup(struct device *dev, v_VOID_t *hif_sc)
    if (eHAL_STATUS_SUCCESS != hal_status)
        hddLog(LOGE, FL("set bpf offload callback failed"));
 
+   /* Initialize the RoC Request queue and work. */
+   hdd_list_init((&pHddCtx->hdd_roc_req_q), MAX_ROC_REQ_QUEUE_ENTRY);
+   vos_init_delayed_work(&pHddCtx->rocReqWork, wlan_hdd_roc_request_dequeue);
+
    wlan_hdd_dcc_register_for_dcc_stats_event(pHddCtx);
 
    /*
@@ -15168,7 +15117,6 @@ err_ipa_cleanup:
 
 err_wiphy_unregister:
    wiphy_unregister(wiphy);
-   wlan_hdd_cfg80211_deinit(wiphy);
 
 err_vosclose:
    status = vos_sched_close( pVosContext );
@@ -15562,37 +15510,12 @@ static int con_mode_handler(const char *kmessage,
 static int fwpath_changed_handler(const char *kmessage,
                                   struct kernel_param *kp)
 {
-	int ret;
-	bool mode_change;
+   int ret;
 
-	ret = param_set_copystring(kmessage, kp);
-
-	if (!ret) {
-		bool ready;
-
-		ret = strncmp(fwpath_mode_local, kmessage , 3);
-		mode_change = ret ? true : false;
-
-
-		pr_info("%s : new_mode : %s, present_mode : %s\n", __func__,
-			kmessage, fwpath_mode_local);
-
-		strlcpy(fwpath_mode_local, kmessage,
-			sizeof(fwpath_mode_local));
-
-		ready = vos_is_load_unload_ready(__func__);
-
-		if (!ready) {
-			VOS_ASSERT(0);
-			return -EINVAL;
-		}
-
-		vos_load_unload_protect(__func__);
-		ret = kickstart_driver(true, mode_change);
-		vos_load_unload_unprotect(__func__);
-	}
-
-	return ret;
+   ret = param_set_copystring(kmessage, kp);
+   if (0 == ret)
+      ret = kickstart_driver(true);
+   return ret;
 }
 
 #if ! defined(QCA_WIFI_FTM)
@@ -15615,7 +15538,7 @@ static int con_mode_handler(const char *kmessage, struct kernel_param *kp)
 
    ret = param_set_int(kmessage, kp);
    if (0 == ret)
-      ret = kickstart_driver(true, false);
+      ret = kickstart_driver(true);
    return ret;
 }
 #endif
