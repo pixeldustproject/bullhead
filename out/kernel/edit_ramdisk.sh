@@ -50,6 +50,10 @@ if  grep -qr forceencrypt /tmp/ramdisk/fstab.bullhead; then
    sed -i "s/forceencrypt/encryptable/" /tmp/ramdisk/fstab.bullhead
 fi
 
+if  grep -qr forceencrypt /tmp/ramdisk/fstab.bullhead; then
+   sed -i "s/forcefdeorfbe/encryptable/" /tmp/ramdisk/fstab.bullhead
+fi
+
 #Disable dm_verity
 if  grep -qr verify=/dev/block/platform/msm_sdcc.1/by-name/metadata /tmp/ramdisk/fstab.bullhead; then
    sed -i "s/\,verify\=\/dev\/block\/platform\/msm_sdcc\.1\/by\-name\/metadata//" /tmp/ramdisk/fstab.bullhead
