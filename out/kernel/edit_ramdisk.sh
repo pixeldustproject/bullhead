@@ -55,8 +55,11 @@ if  grep -qr forceencrypt /tmp/ramdisk/fstab.bullhead; then
 fi
 
 #Disable dm_verity
-if  grep -qr verify=/dev/block/platform/msm_sdcc.1/by-name/metadata /tmp/ramdisk/fstab.bullhead; then
-   sed -i "s/\,verify\=\/dev\/block\/platform\/msm_sdcc\.1\/by\-name\/metadata//" /tmp/ramdisk/fstab.bullhead
+if  grep -qr verify=/dev/block/platform/soc.0/f9824900.sdhci/by-name/metadata /tmp/ramdisk/fstab.bullhead; then
+   sed -i "s/\,verify\=\/dev\/block\/platform\/soc\.0\/f9824900\.sdhci\/by\-name\/metadata//" /tmp/ramdisk/fstab.bullhead
+fi
+if  grep -qr verify=/dev/block/platform/soc.0/f9824900.sdhci/by-name/metadata /tmp/ramdisk/fstab.bullhead; then
+   sed -i "s/\,verify\=\/dev\/block\/platform\/soc\.0\/f9824900\.sdhci\/by\-name\/metadata//" /tmp/ramdisk/fstab.bullhead
 fi
 
 chmod 777 /tmp/ramdisk/boot.img-ramdisk.gz
