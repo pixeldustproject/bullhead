@@ -109,7 +109,7 @@ case "$echoice" in
 		break
 		;;
 	5 )
-		export CROSS_COMPILE=${HOME}/android/uberbuild/out/aarch64-linux-android-6.0-kernel/bin/aarch64-linux-android-
+		export CROSS_COMPILE=${HOME}/android/uberbuild/out/aarch64-linux-android-6.x/bin/aarch64-linux-android-
 		TC="UBER6.0"
 		echo
 		echo "Using UBERTC 6.0"
