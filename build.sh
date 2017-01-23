@@ -15,7 +15,7 @@ DTBIMAGE="dtb"
 DEFCONFIG="phasma_defconfig"
 
 # Kernel Details
-VER=".R46.bullhead."
+VER=".R47.bullhead."
 
 # Paths
 KERNEL_DIR=`pwd`
@@ -56,7 +56,6 @@ function make_dtb {
 function make_boot {
 		cp -vr $ZIMAGE_DIR/Image.gz-dtb ~/android/bullhead/out/kernel/zImage
 
-		. appendramdisk.sh
 }
 
 
