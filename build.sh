@@ -15,7 +15,7 @@ DTBIMAGE="dtb"
 DEFCONFIG="phasma_defconfig"
 
 # Kernel Details
-VER=".R42.bullhead."
+VER=".R43.bullhead."
 
 # Paths
 KERNEL_DIR=`pwd`
@@ -139,7 +139,7 @@ done
 
 # Vars
 BASE_AK_VER="Phasma"
-AK_VER="$BASE_AK_VER$VER$TC"
+AK_VER="$BASE_AK_VER$VER"
 export LOCALVERSION=~`echo $AK_VER`
 export LOCALVERSION=~`echo $AK_VER`
 export ARCH=arm64
