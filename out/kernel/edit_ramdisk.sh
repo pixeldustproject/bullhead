@@ -45,16 +45,8 @@ if [ "$found" != 'run-parts /system/etc/init.d' ]; then
         echo "    group root" >> /tmp/ramdisk/init.rc
 fi
 
-#Don't force encryption
-if  grep -qr forceencrypt /tmp/ramdisk/fstab.bullhead; then
-   sed -i "s/forceencrypt/encryptable/" /tmp/ramdisk/fstab.bullhead
-fi
 
-#Disable dm_verity
-if  grep -qr verify=/dev/block/platform/msm_sdcc.1/by-name/metadata /tmp/ramdisk/fstab.bullhead; then
-   sed -i "s/\,verify\=\/dev\/block\/platform\/msm_sdcc\.1\/by\-name\/metadata//" /tmp/ramdisk/fstab.bullhead
-fi
-
+cp /tmp/fstab.bullhead /tmp/ramdisk/fstab.bullhead
 chmod 777 /tmp/ramdisk/boot.img-ramdisk.gz
 rm -r /tmp/ramdisk/verity_key
 chmod 777 /tmp/ramdisk/boot.img-ramdisk.gz
