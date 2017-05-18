@@ -54,17 +54,17 @@ function make_dtb {
 }
 
 function make_boot {
-		cp -vr $ZIMAGE_DIR/Image.gz-dtb ~/android/bullhead/out/kernel/zImage
-
+		cp -vr $ZIMAGE_DIR/Image.gz-dtb ~/android/AnyKernel2/zImage
 }
 
 
 function make_zip {
-		cd ~/android/bullhead/out
+		cd ~/android/AnyKernel2
 		zip -r9 `echo $AK_VER`.zip *
 		mv  `echo $AK_VER`.zip $ZIP_MOVE
 		cd $KERNEL_DIR
 }
+
 
 
 DATE_START=$(date +"%s")
