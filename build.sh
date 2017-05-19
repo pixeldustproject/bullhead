@@ -15,7 +15,7 @@ DTBIMAGE="dtb"
 DEFCONFIG="phasma_defconfig"
 
 # Kernel Details
-VER=".R51.bullhead."
+VER=".R1.bullhead."
 
 # Paths
 KERNEL_DIR=`pwd`
@@ -80,7 +80,7 @@ while read -p "Do you want to use UBERTC 4.9(1) or UBERTC 5.3(2)? " echoice
 do
 case "$echoice" in
 	1 )
-		export CROSS_COMPILE=${HOME}/android/uberbuild/out/aarch64-linux-android-4.9-kernel/bin/aarch64-linux-android-
+		export CROSS_COMPILE=${HOME}/android/uberbuild/out/aarch64-linux-android-4.9/bin/aarch64-linux-android-
 		TC="UBER4.9"
 		echo
 		echo "Using UBERTC 4.9"
